@@ -22,6 +22,9 @@ public class TicketService {
     @Autowired
     private NoteRepository noteRepository;
 
+    @Autowired
+    private amqpTicket rabbitMQProducer;
+
     public List<TicketsEntity> getAllTicketsWithoutNotes() {
         List<TicketsEntity> tickets = ticketRepository.findAll();
         tickets.forEach(ticket -> ticket.setNotes(null)); // Remove os comentários
@@ -109,16 +112,20 @@ public class TicketService {
         return "INC00001";  // Se não houver tickets anteriores
     }
 
-    public TicketsEntity updateTicket(String id, TicketsEntity ticket) {
-        return ticketRepository.findById(id).map(existingTicket -> {
-            existingTicket.setNameTickets(ticket.getNameTickets());
-            existingTicket.setStatus(ticket.getStatus());
-            existingTicket.setDescription(ticket.getDescription());
-            existingTicket.setPriority(ticket.getPriority());
-            existingTicket.setAssignee(ticket.getAssignee());
-            existingTicket.setNodeName(ticket.getNodeName());
-            existingTicket.setUpdatedAt(LocalDateTime.now());
-            return ticketRepository.save(existingTicket);
-        }).orElseThrow(() -> new RuntimeException("Ticket not found with id " + id));
+    public TicketsEntity updateTicket(String id, String status, String priority, String assignee) {
+        Optional<TicketsEntity> ticketOptional = ticketRepository.findById(id);
+        if (ticketOptional.isPresent()) {
+            TicketsEntity ticket = ticketOptional.get();
+            ticket.setStatus(status);
+            ticket.setPriority(priority);
+            ticket.setAssignee(assignee);
+            TicketsEntity updatedTicket = ticketRepository.save(ticket);
+            if ("Resolvido".equals(status)) {
+                rabbitMQProducer.sendMessage("Ticket resolved: " + updatedTicket.getTicketID());
+            }
+            return updatedTicket;
+        } else {
+            throw new RuntimeException("Ticket not found with id " + id);
+        }
     }
 }

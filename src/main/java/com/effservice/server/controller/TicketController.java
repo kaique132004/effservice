@@ -68,7 +68,7 @@ public class TicketController {
     @Transactional
     public ResponseEntity<?> updateTicket(@PathVariable String id, @RequestBody TicketsEntity ticket) {
         try {
-            TicketsEntity updatedTicket = ticketService.updateTicket(id, ticket);
+            TicketsEntity updatedTicket = ticketService.updateTicket(id, ticket.getStatus(), ticket.getPriority(), ticket.getAssignee());
             return ResponseEntity.ok(updatedTicket);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
